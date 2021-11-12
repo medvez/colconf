@@ -2,7 +2,6 @@
 
 
 import paramiko
-import getpass
 import time
 import os
 
