@@ -4,20 +4,16 @@
 import paramiko
 import getpass
 import time
-import os.path
+import os
 
 
 class SnippetRun:
     def __init__(self):
-        self.username = ''
-        self.password = ''
+        self.username = os.getenv('SSH_USER')
+        self.password = os.getenv('SSH_PWD')
         self.data_folder_path = '/home/spa/scripts/colconf'
         self.snippet = []
         self.devices = []
-
-    def get_credentials(self):
-        self.username = input('SSH username: ')
-        self.password = getpass.getpass(prompt='SSH password: ')
 
     def load_snippet(self):
         _snippet_full_path = os.path.join(self.data_folder_path, 'snippet.txt')
@@ -58,7 +54,6 @@ class SnippetRun:
             self.ssh_operation(device_ip)
 
     def run(self):
-        self.get_credentials()
         self.load_snippet()
         self.load_devices()
         self.configure_devices()
