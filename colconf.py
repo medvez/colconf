@@ -1,63 +1,127 @@
 #! /usr/bin/python3
 
 
-import paramiko
+import getpass
+import logging.config
 import time
-import os
+from netmiko import ConnectHandler
+from pathlib import Path
 
 
-class SnippetRun:
+log_config = {
+    'version': 1,
+    'formatters': {
+        'full': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        },
+    },
+    'handlers': {
+        'main_full_to_file': {
+            'class': 'logging.FileHandler',
+            'formatter': 'full',
+            'filename': 'colconf.log',
+            'encoding': 'utf-8',
+        },
+    },
+    'loggers': {
+        'main': {
+            'handlers': ['main_full_to_file'],
+            'level': 'DEBUG',
+        },
+    },
+}
+
+logging.config.dictConfig(log_config)
+logger = logging.getLogger('main')
+
+
+def time_tracker(function):
+    def intermediate(*args, **kwargs):
+        start_time = time.time()
+        result = function(*args, **kwargs)
+        end_time = time.time()
+        run_time = end_time - start_time
+        print(f'Run time: {round(run_time, 1)} s')
+        return result
+    return intermediate
+
+
+class RunCommand:
+    def __init__(self, ssh_user, ssh_password, device_ip, command):
+        self.command = command
+        self.device = {
+            'device_type': 'cisco_ios',
+            'host': device_ip,
+            'username': ssh_user,
+            'password': ssh_password
+        }
+
+    def ssh_operation(self):
+        with ConnectHandler(**self.device) as ssh_connection:
+            _initial_prompt_string = ssh_connection.find_prompt()
+            try:
+                _cli_output = ssh_connection.send_command(command_string=self.command, expect_string='Address')
+                _cli_output += ssh_connection.send_command(command_string='\n', expect_string='Destination')
+                _cli_output += ssh_connection.send_command(command_string='\n', expect_string='Destination')
+                _cli_output += ssh_connection.send_command(command_string='\n', expect_string=_initial_prompt_string)
+                print(f"[OK] {self.device['host']:>25}")
+                print(_cli_output)
+            except Exception:
+                logger.exception(f"Problem with host {self.device['host']}")
+                print(f"[NOT OK] {self.device['host']:>25}")
+
+    def run(self):
+        self.ssh_operation()
+
+
+class DeviceController:
     def __init__(self):
-        self.username = os.getenv('SSH_USER')
-        self.password = os.getenv('SSH_PWD')
-        self.data_folder_path = '/home/spa/scripts/colconf'
-        self.snippet = []
+        self.username = ''
+        self.password = ''
+        self.server_username = ''
+        self.server_password = ''
+        self.command = ''
         self.devices = []
+        self.program_hosting_folder = Path(__file__).parent.resolve()
 
-    def load_snippet(self):
-        _snippet_full_path = os.path.join(self.data_folder_path, 'snippet.txt')
-        with open(file=_snippet_full_path, mode='r', encoding='utf8') as file_content:
-            for line in file_content:
-                if line.endswith('\n'):
-                    self.snippet.append(line)
-                elif line:
-                    self.snippet.append(line + '\n')
+    def get_credentials(self):
+        self.username = input('SSH username: ')
+        self.password = getpass.getpass(prompt='SSH password: ')
+        self.server_username = input('WIA-MES-TEAM username: ')
+        self.server_password = getpass.getpass(prompt='WIA-MES-TEAM password: ')
+
+    def compile_command(self):
+        self.command = f'copy startup scp://{self.server_username}:{self.server_password}@10.115.21.55/configs/switches/'
 
     def load_devices(self):
-        _devices_full_path = os.path.join(self.data_folder_path, 'devices.txt')
+        _devices_full_path = self.program_hosting_folder / 'devices.txt'
         with open(file=_devices_full_path, mode='r', encoding='utf8') as file_content:
             for line in file_content:
                 line = line.splitlines()[0]
                 if line:
                     self.devices.append(line)
 
-    def ssh_operation(self, device_ip):
-        ssh_client = paramiko.client.SSHClient()
-        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        print(f'Connecting to {device_ip}...')
-        try:
-            ssh_client.connect(hostname=device_ip, username=self.username, password=self.password, allow_agent=False)
-        except Exception as exc:
-            print(exc)
-        else:
-            print('Connected!')
-            ssh_session = ssh_client.invoke_shell()
-            for command in self.snippet:
-                ssh_session.send(command)
-                time.sleep(1)
-            time.sleep(2)
-            ssh_client.close()
-
+    @time_tracker
     def configure_devices(self):
         for device_ip in self.devices:
-            self.ssh_operation(device_ip)
+            command_runner = RunCommand(ssh_user=self.username,
+                                        ssh_password=self.password,
+                                        device_ip=device_ip,
+                                        command=self.command)
+            command_runner.run()
 
     def run(self):
-        self.load_snippet()
-        self.load_devices()
-        self.configure_devices()
+        self.get_credentials()
+        self.compile_command()
+        try:
+            self.load_devices()
+        except Exception:
+            print('Error opening file')
+            logger.exception(Exception)
+        else:
+            self.configure_devices()
 
 
 if __name__ == '__main__':
-    snippet_run = SnippetRun()
-    snippet_run.run()
+    controller = DeviceController()
+    controller.run()
