@@ -4,15 +4,15 @@
 import getpass
 import logging.config
 import time
-from netmiko import ConnectHandler
+from netmiko import ConnectHandler, NetmikoTimeoutException, ReadTimeout
 from pathlib import Path
-
 
 log_config = {
     'version': 1,
     'formatters': {
         'full': {
-            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            'format': '%(asctime)s - %(levelname)s - %(message)s',
+            'datefmt': '%y-%m-%d %H:%M:%S'
         },
     },
     'handlers': {
@@ -43,10 +43,20 @@ def time_tracker(function):
         run_time = end_time - start_time
         print(f'Run time: {round(run_time, 1)} s')
         return result
+
     return intermediate
 
 
-class RunCommand:
+def log_handler(message, device_ip=None):
+    if device_ip is not None:
+        logger.exception(f"{device_ip}:{message}", exc_info=False)
+        print(f"[NOT OK] {device_ip:>20}")
+    else:
+        logger.exception(message, exc_info=False)
+        print(message)
+
+
+class SingleDeviceExecuteCommand:
     def __init__(self, ssh_user, ssh_password, device_ip, command):
         self.command = command
         self.device = {
@@ -56,25 +66,29 @@ class RunCommand:
             'password': ssh_password
         }
 
+    def execute(self, ssh_connection):
+        _initial_prompt_string = ssh_connection.find_prompt()
+        _cli_output = ssh_connection.send_command(command_string=self.command, expect_string='Address')
+        _cli_output += ssh_connection.send_command(command_string='\n', expect_string='Destination')
+        _cli_output += ssh_connection.send_command(command_string='\n', expect_string='Destination')
+        _cli_output += ssh_connection.send_command(command_string='\n', expect_string=_initial_prompt_string)
+
     def ssh_operation(self):
         with ConnectHandler(**self.device) as ssh_connection:
-            _initial_prompt_string = ssh_connection.find_prompt()
             try:
-                _cli_output = ssh_connection.send_command(command_string=self.command, expect_string='Address')
-                _cli_output += ssh_connection.send_command(command_string='\n', expect_string='Destination')
-                _cli_output += ssh_connection.send_command(command_string='\n', expect_string='Destination')
-                _cli_output += ssh_connection.send_command(command_string='\n', expect_string=_initial_prompt_string)
-                print(f"[OK] {self.device['host']:>25}")
-                print(_cli_output)
-            except Exception:
-                logger.exception(f"Problem with host {self.device['host']}")
-                print(f"[NOT OK] {self.device['host']:>25}")
+                self.execute(ssh_connection)
+                print(f"[OK] {self.device['host']:>20}")
+            except ReadTimeout:
+                log_handler(message="can't execute command", device_ip=self.device['host'])
 
     def run(self):
-        self.ssh_operation()
+        try:
+            self.ssh_operation()
+        except NetmikoTimeoutException:
+            log_handler(message="can't connect to appliance", device_ip=self.device['host'])
 
 
-class DeviceController:
+class TreatAllDevices:
     def __init__(self):
         self.username = ''
         self.password = ''
@@ -91,7 +105,8 @@ class DeviceController:
         self.server_password = getpass.getpass(prompt='WIA-MES-TEAM password: ')
 
     def compile_command(self):
-        self.command = f'copy startup scp://{self.server_username}:{self.server_password}@10.115.21.55/configs/switches/'
+        self.command = f'copy startup ' \
+                       f'scp://{self.server_username}:{self.server_password}@10.115.21.55/configs/switches/'
 
     def load_devices(self):
         _devices_full_path = self.program_hosting_folder / 'devices.txt'
@@ -104,10 +119,10 @@ class DeviceController:
     @time_tracker
     def configure_devices(self):
         for device_ip in self.devices:
-            command_runner = RunCommand(ssh_user=self.username,
-                                        ssh_password=self.password,
-                                        device_ip=device_ip,
-                                        command=self.command)
+            command_runner = SingleDeviceExecuteCommand(ssh_user=self.username,
+                                                        ssh_password=self.password,
+                                                        device_ip=device_ip,
+                                                        command=self.command)
             command_runner.run()
 
     def run(self):
@@ -116,12 +131,11 @@ class DeviceController:
         try:
             self.load_devices()
         except Exception:
-            print('Error opening file')
-            logger.exception(Exception)
+            log_handler(message="Can't open devices file")
         else:
             self.configure_devices()
 
 
 if __name__ == '__main__':
-    controller = DeviceController()
+    controller = TreatAllDevices()
     controller.run()
