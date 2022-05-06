@@ -130,8 +130,8 @@ class TreatAllDevices:
         self.compile_command()
         try:
             self.load_devices()
-        except Exception:
-            log_handler(message="Can't open devices file")
+        except Exception as exc:
+            log_handler(message=exc)
         else:
             self.configure_devices()
 
