@@ -77,15 +77,17 @@ class SingleDeviceExecuteCommand:
         with ConnectHandler(**self.device) as ssh_connection:
             try:
                 self.execute(ssh_connection)
-                print(f"[OK] {self.device['host']:>20}")
+                print(f"{'[OK]':10} {self.device['host']}")
             except ReadTimeout:
                 log_handler(message="can't execute command", device_ip=self.device['host'])
+                print(f"{'[NOT OK]':10} {self.device['host']}")
 
     def run(self):
         try:
             self.ssh_operation()
         except NetmikoTimeoutException:
             log_handler(message="can't connect to appliance", device_ip=self.device['host'])
+            print(f"{'[NOT OK]':10} {self.device['host']}")
 
 
 class TreatAllDevices:
