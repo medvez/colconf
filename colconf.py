@@ -98,7 +98,7 @@ class TreatAllDevices:
         self.server_password = ''
         self.command = ''
         self.devices = []
-        self.program_hosting_folder = Path(__file__).parent.resolve()
+        self.devices_file = Path(__file__).parent.resolve() / 'devices.txt'
 
     def get_credentials(self):
         self.username = input('SSH username: ')
@@ -111,8 +111,7 @@ class TreatAllDevices:
                        f'scp://{self.server_username}:{self.server_password}@10.115.21.55/configs/switches/'
 
     def load_devices(self):
-        _devices_full_path = self.program_hosting_folder / 'devices.txt'
-        with open(file=_devices_full_path, mode='r', encoding='utf8') as file_content:
+        with self.devices_file.open(mode='r', encoding='utf8') as file_content:
             for line in file_content:
                 line = line.splitlines()[0]
                 if line:
