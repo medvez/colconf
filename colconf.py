@@ -22,7 +22,7 @@ LOG_CONFIG = {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
             'formatter': 'base',
-            'filename': BASE_DIR / 'logs/colconf.log',
+            'filename': BASE_DIR / 'colconf.log',
             'encoding': 'utf-8',
         },
     },
