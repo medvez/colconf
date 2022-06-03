@@ -4,6 +4,9 @@
 import getpass
 import logging.config
 import time
+
+import netmiko.exceptions
+
 import conf
 from netmiko import ConnectHandler, NetmikoTimeoutException, ReadTimeout
 from pathlib import Path
@@ -88,6 +91,8 @@ class SingleDeviceExecuteCommand:
             self.ssh_operation()
         except NetmikoTimeoutException:
             log_handler(message="can't connect to appliance", device_ip=self.device['host'])
+        except netmiko.exceptions.AuthenticationException:
+            log_handler(message="wrong ssh password", device_ip=self.device['host'])
 
 
 
