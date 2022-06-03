@@ -8,7 +8,8 @@ import conf
 from netmiko import ConnectHandler, NetmikoTimeoutException, ReadTimeout
 from pathlib import Path
 
-log_config = {
+BASE_DIR = Path(__file__).parent.resolve()
+LOG_CONFIG = {
     'version': 1,
     'formatters': {
         'base': {
@@ -21,7 +22,7 @@ log_config = {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
             'formatter': 'base',
-            'filename': 'colconf.log',
+            'filename': BASE_DIR / 'logs/colconf.log',
             'encoding': 'utf-8',
         },
     },
@@ -33,7 +34,7 @@ log_config = {
     },
 }
 
-logging.config.dictConfig(log_config)
+logging.config.dictConfig(LOG_CONFIG)
 logger = logging.getLogger(__name__)
 
 
@@ -98,7 +99,7 @@ class TreatAllDevices:
         self.server_password = ''
         self.command = ''
         self.devices = []
-        self.devices_file = Path(__file__).parent.resolve() / 'devices.txt'
+        self.devices_file = BASE_DIR / 'devices.txt'
 
     def get_credentials(self):
         self.username = input('SSH username: ')
