@@ -4,35 +4,37 @@
 import getpass
 import logging.config
 import time
+import conf
 from netmiko import ConnectHandler, NetmikoTimeoutException, ReadTimeout
 from pathlib import Path
 
 log_config = {
     'version': 1,
     'formatters': {
-        'full': {
-            'format': '%(asctime)s - %(levelname)s - %(message)s',
+        'base': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             'datefmt': '%y-%m-%d %H:%M:%S'
         },
     },
     'handlers': {
-        'main_full_to_file': {
+        'debug_to_file': {
+            'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'formatter': 'full',
+            'formatter': 'base',
             'filename': 'colconf.log',
             'encoding': 'utf-8',
         },
     },
     'loggers': {
-        'main': {
-            'handlers': ['main_full_to_file'],
+        'colconf': {
+            'handlers': ['debug_to_file'],
             'level': 'DEBUG',
         },
     },
 }
 
 logging.config.dictConfig(log_config)
-logger = logging.getLogger('main')
+logger = logging.getLogger(__name__)
 
 
 def time_tracker(function):
@@ -43,16 +45,15 @@ def time_tracker(function):
         run_time = end_time - start_time
         print(f'Run time: {round(run_time, 1)} s')
         return result
-
     return intermediate
 
 
 def log_handler(message, device_ip=None):
     if device_ip is not None:
-        logger.exception(f"{device_ip}:{message}", exc_info=False)
-        print(f"[NOT OK] {device_ip:>20}")
+        logger.error(f"{device_ip}:{message}", exc_info=False)
+        print(f"{'[NOT OK]':10} {device_ip}")
     else:
-        logger.exception(message, exc_info=False)
+        logger.error(message, exc_info=False)
         print(message)
 
 
@@ -80,14 +81,13 @@ class SingleDeviceExecuteCommand:
                 print(f"{'[OK]':10} {self.device['host']}")
             except ReadTimeout:
                 log_handler(message="can't execute command", device_ip=self.device['host'])
-                print(f"{'[NOT OK]':10} {self.device['host']}")
 
     def run(self):
         try:
             self.ssh_operation()
         except NetmikoTimeoutException:
             log_handler(message="can't connect to appliance", device_ip=self.device['host'])
-            print(f"{'[NOT OK]':10} {self.device['host']}")
+
 
 
 class TreatAllDevices:
@@ -108,7 +108,8 @@ class TreatAllDevices:
 
     def compile_command(self):
         self.command = f'copy startup ' \
-                       f'scp://{self.server_username}:{self.server_password}@10.115.21.55/configs/switches/'
+                       f'scp://{self.server_username}:{self.server_password}@' \
+                       f'{conf.SERVER_IP}/{conf.FOLDER_PATH}'
 
     def load_devices(self):
         with self.devices_file.open(mode='r', encoding='utf8') as file_content:
