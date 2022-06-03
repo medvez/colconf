@@ -112,8 +112,8 @@ class TreatAllDevices:
                        f'{conf.SERVER_IP}/{conf.FOLDER_PATH}'
 
     def load_devices(self):
-        with self.devices_file.open(mode='r', encoding='utf8') as file_content:
-            for line in file_content:
+        with self.devices_file.open(mode='r', encoding='utf8') as _file_content:
+            for line in _file_content:
                 line = line.splitlines()[0]
                 if line:
                     self.devices.append(line)
@@ -121,11 +121,10 @@ class TreatAllDevices:
     @time_tracker
     def configure_devices(self):
         for device_ip in self.devices:
-            command_runner = SingleDeviceExecuteCommand(ssh_user=self.username,
-                                                        ssh_password=self.password,
-                                                        device_ip=device_ip,
-                                                        command=self.command)
-            command_runner.run()
+            SingleDeviceExecuteCommand(ssh_user=self.username,
+                                       ssh_password=self.password,
+                                       device_ip=device_ip,
+                                       command=self.command).run()
 
     def run(self):
         self.get_credentials()
@@ -142,5 +141,4 @@ class TreatAllDevices:
 
 
 if __name__ == '__main__':
-    controller = TreatAllDevices()
-    controller.run()
+    TreatAllDevices().run()
