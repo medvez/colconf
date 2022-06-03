@@ -1,14 +1,11 @@
 #! /usr/bin/python3
 
 
+import conf
 import getpass
 import logging.config
 import time
-
-import netmiko.exceptions
-
-import conf
-from netmiko import ConnectHandler, NetmikoTimeoutException, ReadTimeout
+from netmiko import ConnectHandler, NetmikoTimeoutException, ReadTimeout, NetmikoAuthenticationException
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.resolve()
@@ -38,7 +35,7 @@ LOG_CONFIG = {
 }
 
 logging.config.dictConfig(LOG_CONFIG)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('colconf')
 
 
 def time_tracker(function):
@@ -91,9 +88,6 @@ class SingleDeviceExecuteCommand:
             self.ssh_operation()
         except NetmikoTimeoutException:
             log_handler(message="can't connect to appliance", device_ip=self.device['host'])
-        except netmiko.exceptions.AuthenticationException:
-            log_handler(message="wrong ssh password", device_ip=self.device['host'])
-
 
 
 class TreatAllDevices:
@@ -141,7 +135,10 @@ class TreatAllDevices:
         except Exception as exc:
             log_handler(message=exc)
         else:
-            self.configure_devices()
+            try:
+                self.configure_devices()
+            except NetmikoAuthenticationException:
+                log_handler(message="wrong ssh password")
 
 
 if __name__ == '__main__':
