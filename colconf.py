@@ -4,11 +4,12 @@
 import conf
 import getpass
 import logging.config
+import os.path
 import time
 from netmiko import ConnectHandler, NetmikoTimeoutException, ReadTimeout, NetmikoAuthenticationException
-from pathlib import Path
 
-BASE_DIR = Path(__file__).parent.resolve()
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+print(os.path.join(BASE_DIR, 'colconf.log'))
 LOG_CONFIG = {
     'version': 1,
     'formatters': {
@@ -22,7 +23,7 @@ LOG_CONFIG = {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
             'formatter': 'base',
-            'filename': BASE_DIR / 'colconf.log',
+            'filename': os.path.join(BASE_DIR, 'colconf.log'),
             'encoding': 'utf-8',
         },
     },
@@ -98,7 +99,7 @@ class TreatAllDevices:
         self.server_password = ''
         self.command = ''
         self.devices = []
-        self.devices_file = BASE_DIR / 'devices.txt'
+        self.devices_file = os.path.join(BASE_DIR, 'devices.txt')
 
     def get_credentials(self):
         self.username = input('SSH username: ')
@@ -112,7 +113,7 @@ class TreatAllDevices:
                        f'{conf.SERVER_IP}/{conf.FOLDER_PATH}'
 
     def load_devices(self):
-        with self.devices_file.open(mode='r', encoding='utf8') as _file_content:
+        with open(file=self.devices_file, mode='r', encoding='utf8') as _file_content:
             for line in _file_content:
                 line = line.splitlines()[0]
                 if line:
