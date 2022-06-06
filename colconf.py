@@ -9,7 +9,6 @@ import time
 from netmiko import ConnectHandler, NetmikoTimeoutException, ReadTimeout, NetmikoAuthenticationException
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
-print(os.path.join(BASE_DIR, 'colconf.log'))
 LOG_CONFIG = {
     'version': 1,
     'formatters': {
