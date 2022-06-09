@@ -6,6 +6,11 @@ import getpass
 import logging.config
 import os.path
 import time
+import warnings
+
+from cryptography.utils import CryptographyDeprecationWarning
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+
 from netmiko import ConnectHandler, NetmikoTimeoutException, ReadTimeout, NetmikoAuthenticationException
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -71,9 +76,9 @@ class SingleDeviceExecuteCommand:
     def execute(self, ssh_connection):
         _initial_prompt_string = ssh_connection.find_prompt()
         _cli_output = ssh_connection.send_command(command_string=self.command, expect_string='Address')
-        _cli_output += ssh_connection.send_command(command_string='\n', expect_string='Destination')
-        _cli_output += ssh_connection.send_command(command_string='\n', expect_string='Destination')
-        _cli_output += ssh_connection.send_command(command_string='\n', expect_string=_initial_prompt_string)
+        _cli_output = ssh_connection.send_command(command_string='\n', expect_string='Destination')
+        _cli_output = ssh_connection.send_command(command_string='\n', expect_string='Destination')
+        _cli_output = ssh_connection.send_command(command_string='\n', expect_string=_initial_prompt_string)
 
     def ssh_operation(self):
         with ConnectHandler(**self.device) as ssh_connection:
